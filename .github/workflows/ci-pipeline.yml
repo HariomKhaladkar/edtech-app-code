@@ -1,13 +1,17 @@
-
-name: Debug Docker Credentials
+name: Verify Docker Username
 
 on:
   push:
     branches: [ "main" ]
 
 jobs:
-  debug:
+  verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Print Docker Hub Username
-        run: echo "The username being used is --->${{ secrets.DOCKERHUB_USERNAME }}<---"
+      - name: Check if username secret matches the correct value
+        if: ${{ secrets.DOCKERHUB_USERNAME == 'hariom1804' }}
+        run: echo "✅ SUCCESS: The username secret MATCHES!"
+
+      - name: Show error if username does not match
+        if: ${{ secrets.DOCKERHUB_USERNAME != 'hariom1804' }}
+        run: echo "❌ FAILURE: The username secret DOES NOT MATCH! Please check for typos or extra spaces in your GitHub Secret."
