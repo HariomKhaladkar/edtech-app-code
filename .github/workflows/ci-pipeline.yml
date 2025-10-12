@@ -35,3 +35,18 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
+
+
+
+name: Debug Docker Credentials
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print Docker Hub Username
+        run: echo "The username being used is --->${{ secrets.DOCKERHUB_USERNAME }}<---"
