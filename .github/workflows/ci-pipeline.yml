@@ -10,8 +10,8 @@ jobs:
     steps:
       - name: Check if username secret matches the correct value
         if: ${{ secrets.DOCKERHUB_USERNAME == 'hariom1804' }}
-        run: echo "✅ SUCCESS: The username secret MATCHES!"
+        run: echo " SUCCESS The username secret MATCHES!"
 
       - name: Show error if username does not match
         if: ${{ secrets.DOCKERHUB_USERNAME != 'hariom1804' }}
-        run: echo "❌ FAILURE: The username secret DOES NOT MATCH! Please check for typos or extra spaces in your GitHub Secret."
+        run: echo " FAILURE The username secret DOES NOT MATCH! Please check for typos or extra spaces in your GitHub Secret."
