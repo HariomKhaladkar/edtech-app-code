@@ -1,10 +1,11 @@
-name: Build and Push Docker Image
+name: Build, Push, and Deploy
 
 on:
   push:
     branches: [ "main" ]
 
 jobs:
+  # Job 1: Build and Push the Docker Image (This is the same as before)
   build:
     runs-on: ubuntu-latest
     steps:
@@ -23,3 +24,33 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
+
+  # Job 2: NEW! This job updates the deployment repository
+  update_deployment:
+    # This job will only run if the 'build' job was successful
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Check out the INFRASTRUCTURE repository, not the app code
+      - name: Checkout infra config repository
+        uses: actions/checkout@v3
+        with:
+          # Use the PAT to get write access
+          token: ${{ secrets.PAT }}
+          repository: HariomKhaladkar/edtech-infra-config
+
+      # Step 2: Update the image tag in the ArgoCD manifest file
+      - name: Update image tag
+        # This 'sed' command finds the line with 'tag:' and replaces the value
+        # with the full commit SHA of the code we just built.
+        run: |
+          sed -i 's|tag: ".*"|tag: "${{ github.sha }}"|' argocd-apps/user-service-app.yaml
+
+      # Step 3: Commit and push the change
+      - name: Commit and push the updated tag
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          git add .
+          git commit -m "AUTODEPLOY: Update image tag to ${{ github.sha }}"
+          git push
