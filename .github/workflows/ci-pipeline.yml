@@ -24,6 +24,8 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
+          no-cache: true
+
 
   # Job 2: NEW! This job updates the deployment repository
   update_deployment:
