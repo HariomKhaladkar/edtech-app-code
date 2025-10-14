@@ -48,16 +48,22 @@ jobs:
         run: |
           IMAGE_TAG=${{ needs.build.outputs.image_tag }}
           CONTAINER_NAME=user-service-test-container
-          # 1. Pull the specific image we just built in the previous job
+
+          # 1. Pull the specific image we just built
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/user-service:$IMAGE_TAG
+
           # 2. Run the container in the background
           docker run -d --name $CONTAINER_NAME -p 8080:8080 ${{ secrets.DOCKERHUB_USERNAME }}/user-service:$IMAGE_TAG
-          # 3. Give the service a few seconds to be ready
+
+          # 3. NEW: Robust health check loop. Waits up to 30 seconds for the service to be ready.
           echo "Waiting for the service to start..."
-          sleep 5
-          # 4. Run Newman tests. The '--network=host' flag lets Newman see localhost:8080
-          docker run --network=host -t postman/newman:latest run "user-service/tests/user-service-tests.json"
-          # 5. Always stop and remove the test container, even if tests fail
+          timeout 30s bash -c 'until curl -s http://localhost:8080 > /dev/null; do echo "Waiting..."; sleep 2; done'
+          echo "Service is up!"
+
+          # 4. Run Newman tests with verbose output.
+          docker run --network=host -t postman/newman:latest run "user-service/tests/user-service-tests.json" --verbose
+
+          # 5. Always stop and remove the test container
           echo "Cleaning up the test container..."
           docker stop $CONTAINER_NAME
           docker rm $CONTAINER_NAME
