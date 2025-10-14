@@ -26,7 +26,7 @@ jobs:
         with:
           context: ./user-service
           push: true
-          tags: ${{ secrets.DOCKOCKHUB_USERNAME }}/user-service:${{ github.sha }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
           no-cache: true
 
   # Job 2: Run API tests (same as before)
