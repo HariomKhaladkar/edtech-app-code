@@ -1,78 +1,77 @@
-name: Build, Test, Push, and Deploy User Service
+name: Build, Test, Scan, Push, and Deploy User Service
 
 on:
   push:
     branches: [ "main" ]
     paths:
-      # This workflow will ONLY run if files inside the user-service folder are changed.
       - 'user-service/**'
-      # Or if the workflow file itself is changed.
-      - '.github/workflows/ci-pipeline.yml' # <-- Adjust this filename if you have separate workflows
+      - '.github/workflows/ci-pipeline.yml'
 
 jobs:
-  # Job 1: Build the Docker Image
+  # Job 1: Build the Docker Image (same as before)
   build:
     runs-on: ubuntu-latest
-    # We need to output the image tag so the test job can use it
     outputs:
       image_tag: ${{ github.sha }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
+          username: ${{ secrets.DOCKOCKHUB_USERNAME }}
+          password: ${{ secrets.DOCKOCKHUB_TOKEN }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: ./user-service
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
+          tags: ${{ secrets.DOCKOCKHUB_USERNAME }}/user-service:${{ github.sha }}
           no-cache: true
 
-  # Job 2: NEW! Run API tests against the built image
+  # Job 2: Run API tests (same as before)
   test:
-    # This job will only run if 'build' succeeds
     needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
       - name: Run API tests with Newman
-        # This script pulls the image, runs it as a container, tests it, and then cleans up
         run: |
           IMAGE_TAG=${{ needs.build.outputs.image_tag }}
           CONTAINER_NAME=user-service-test-container
-
-          # 1. Pull the specific image
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/user-service:$IMAGE_TAG
-
-          # 2. Run the container in the background
-          docker run -d --name $CONTAINER_NAME -p 8080:8080 ${{ secrets.DOCKERHUB_USERNAME }}/user-service:$IMAGE_TAG
-
-          # 3. Robust health check loop
+          docker pull ${{ secrets.DOCKOCKHUB_USERNAME }}/user-service:$IMAGE_TAG
+          docker run -d --name $CONTAINER_NAME -p 8080:8080 ${{ secrets.DOCKOCKHUB_USERNAME }}/user-service:$IMAGE_TAG
           echo "Waiting for the service to start..."
           timeout 30s bash -c 'until curl -s http://localhost:8080 > /dev/null; do echo "Waiting..."; sleep 2; done'
           echo "Service is up!"
-
-          # 4. Run Newman tests with the project files mounted as a volume
-          # The -v $(pwd):/etc/newman flag is the critical fix
           docker run -v $(pwd):/etc/newman --network=host -t postman/newman:latest run "user-service/tests/user-service-tests.json" --verbose
-
-          # 5. Always stop and remove the test container
           echo "Cleaning up the test container..."
           docker stop $CONTAINER_NAME
           docker rm $CONTAINER_NAME
 
-  # Job 3: Update the deployment configuration
+  # Job 3: NEW! Scan the container for security vulnerabilities
+  scan:
+    # This job will run in parallel with the 'test' job
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scan container image for vulnerabilities
+        # Use the official Snyk action
+        uses: snyk/actions/docker@master
+        env:
+          # Use the SNYK_TOKEN secret you just created
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          # Specify the image to scan, using the output from the 'build' job
+          image: ${{ secrets.DOCKOCKHUB_USERNAME }}/user-service:${{ needs.build.outputs.image_tag }}
+          # This argument tells Snyk to fail the job if any high-severity vulnerabilities are found
+          args: --fail-on=high --severity-threshold=high
+
+  # Job 4: Update the deployment configuration
   update_deployment:
-    # This job will ONLY run if the 'test' job was successful
-    needs: test
+    # CRITICAL CHANGE: This job will ONLY run if BOTH 'test' and 'scan' succeed
+    needs: [test, scan]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout infra config repository
