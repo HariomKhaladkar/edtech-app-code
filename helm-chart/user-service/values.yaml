@@ -159,3 +159,7 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+# Custom application configuration
+config:
+  greeting: "Hello from the default user service!"
