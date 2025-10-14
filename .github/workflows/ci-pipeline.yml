@@ -1,13 +1,21 @@
-name: Build, Push, and Deploy
+name: Build, Test, Push, and Deploy User Service
 
 on:
   push:
     branches: [ "main" ]
+    paths:
+      # This workflow will ONLY run if files inside the user-service folder are changed.
+      - 'user-service/**'
+      # Or if the workflow file itself is changed.
+      - '.github/workflows/ci-pipeline.yml' # <-- Adjust this filename if you have separate workflows
 
 jobs:
-  # Job 1: Build and Push the Docker Image
+  # Job 1: Build the Docker Image
   build:
     runs-on: ubuntu-latest
+    # We need to output the image tag so the test job can use it
+    outputs:
+      image_tag: ${{ github.sha }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -21,42 +29,62 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
-          context: .
+          context: ./user-service
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
-          # We keep the no-cache option to prevent old code from being used
           no-cache: true
 
-  # Job 2: NEW! This job updates the deployment repository
-  update_deployment:
-    # This job will only run if the 'build' job was successful
+  # Job 2: NEW! Run API tests against the built image
+  test:
+    # This job will only run if 'build' succeeds
     needs: build
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Check out the INFRASTRUCTURE repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run API tests with Newman
+        # This script pulls the image, runs it as a container, tests it, and then cleans up
+        run: |
+          IMAGE_TAG=${{ needs.build.outputs.image_tag }}
+          CONTAINER_NAME=user-service-test-container
+          # 1. Pull the specific image we just built in the previous job
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/user-service:$IMAGE_TAG
+          # 2. Run the container in the background
+          docker run -d --name $CONTAINER_NAME -p 8080:8080 ${{ secrets.DOCKERHUB_USERNAME }}/user-service:$IMAGE_TAG
+          # 3. Give the service a few seconds to be ready
+          echo "Waiting for the service to start..."
+          sleep 5
+          # 4. Run Newman tests. The '--network=host' flag lets Newman see localhost:8080
+          docker run --network=host -t postman/newman:latest run "user-service/tests/user-service-tests.json"
+          # 5. Always stop and remove the test container, even if tests fail
+          echo "Cleaning up the test container..."
+          docker stop $CONTAINER_NAME
+          docker rm $CONTAINER_NAME
+
+  # Job 3: Update the deployment configuration
+  update_deployment:
+    # This job will ONLY run if the 'test' job was successful
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
       - name: Checkout infra config repository
         uses: actions/checkout@v3
         with:
-          # Use the new PAT to get write access
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
           repository: HariomKhaladkar/edtech-infra-config
 
-      # Step 2: Update the image tag in the ArgoCD manifest file
-      - name: Update image tag
-        # This 'sed' command finds the line with 'tag:' and replaces the value
-        # with the full commit SHA of the code we just built.
+      - name: Update image tag in user-service manifest
         run: |
           sed -i 's|tag: ".*"|tag: "${{ github.sha }}"|' argocd-apps/user-service-app.yaml
 
-      # Step 3: Commit and push the change
       - name: Commit and push the updated tag
         run: |
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
           git add .
-          # Check if there are changes to commit to avoid errors on no-op runs
           if ! git diff-index --quiet HEAD; then
-            git commit -m "AUTODEPLOY: Update image tag to ${{ github.sha }}"
+            git commit -m "AUTODEPLOY(user-service): Update image tag to ${{ github.sha }}"
             git push
           else
             echo "No changes to commit."

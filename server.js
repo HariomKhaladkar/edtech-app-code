@@ -7,7 +7,7 @@ const message = process.env.GREETING_MESSAGE || "Hello from the default User Ser
 
 app.get('/', (req, res) => {
   // Use the dynamic message
-  res.send('Hello from Version 7.0! This is the FINAL check!');
+  res.send('Hello from Version 8.0! This pipeline is TESTED!');
 });
 
 app.listen(PORT, () => {
