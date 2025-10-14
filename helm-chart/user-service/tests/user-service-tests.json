@@ -1,0 +1,67 @@
+{
+	"info": {
+		"_postman_id": "94061bcc-9db9-4156-9991-5a228112fb34",
+		"name": "User Service Tests",
+		"description": "pm.test(\"Status code is 200\", function () {  \npm.response.to.have.status(200);  \n});\n\npm.test(\"Body contains the word 'Hello'\", function () {  \npm.expect(pm.response.text()).to.include(\"Hello\");  \n});",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "43351872",
+		"_collection_link": "https://warped-equinox-208470.postman.co/workspace/Team-Workspace~e8490841-c833-437b-8266-881bda0ddd9c/collection/43351872-94061bcc-9db9-4156-9991-5a228112fb34?action=share&source=collection_link&creator=43351872"
+	},
+	"item": [
+		{
+			"name": "Get Root Endpoint",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Body contains the word 'Hello'\", function () {\r",
+							"    pm.expect(pm.response.text()).to.include(\"Hello\");\r",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disableCookies": true
+			},
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8081/",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						""
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
