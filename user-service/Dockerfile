@@ -1,21 +1,20 @@
-# Use an official Node.js runtime as the base image
+# Use the secure slim image
 FROM node:18-slim
 
-# Set the working directory in the container
+# Set the working directory
 WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json to leverage Docker's layer caching
+# Copy package files
 COPY package*.json ./
 
 # Install application dependencies
 RUN npm install
-RUN npm install -g npm@latest
 
-# Copy the rest of the application source code into the container
+# Copy the rest of the application source code
 COPY . .
 
-# Expose the port the app runs on so it can be accessed from outside
+# Expose the correct port
 EXPOSE 8080
 
-# Define the command to run the application when the container starts
+# Define the command to run the application
 CMD [ "npm", "start" ]
