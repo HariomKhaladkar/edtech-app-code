@@ -1,5 +1,5 @@
 # Use an official Node.js runtime as the base image
-FROM node:18-alpine
+FROM node:18-slim
 
 # Set the working directory in the container
 WORKDIR /usr/src/app
@@ -9,6 +9,7 @@ COPY package*.json ./
 
 # Install application dependencies
 RUN npm install
+RUN npm install -g npm@latest
 
 # Copy the rest of the application source code into the container
 COPY . .
