@@ -8,7 +8,7 @@ on:
       - '.github/workflows/ci-pipeline.yml'
 
 jobs:
-  # Job 1: Build the Docker Image (same as before)
+  # Job 1: Build the Docker Image
   build:
     runs-on: ubuntu-latest
     outputs:
@@ -29,7 +29,7 @@ jobs:
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
           no-cache: true
 
-  # Job 2: Run API tests (same as before)
+  # Job 2: Run API tests
   test:
     needs: build
     runs-on: ubuntu-latest
@@ -40,7 +40,7 @@ jobs:
         run: |
           IMAGE_TAG=${{ needs.build.outputs.image_tag }}
           CONTAINER_NAME=user-service-test-container
-          docker pull ${{ secrets.DOCKOCKHUB_USERNAME }}/user-service:$IMAGE_TAG
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/user-service:$IMAGE_TAG
           docker run -d --name $CONTAINER_NAME -p 8080:8080 ${{ secrets.DOCKERHUB_USERNAME }}/user-service:$IMAGE_TAG
           echo "Waiting for the service to start..."
           timeout 30s bash -c 'until curl -s http://localhost:8080 > /dev/null; do echo "Waiting..."; sleep 2; done'
@@ -50,27 +50,22 @@ jobs:
           docker stop $CONTAINER_NAME
           docker rm $CONTAINER_NAME
 
-  # Job 3: NEW! Scan the container for security vulnerabilities
+  # Job 3: Scan the container for security vulnerabilities
   scan:
-    # This job will run in parallel with the 'test' job
     needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Scan container image for vulnerabilities
-        # Use the official Snyk action
         uses: snyk/actions/docker@master
         env:
-          # Use the SNYK_TOKEN secret you just created
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          # Specify the image to scan, using the output from the 'build' job
           image: ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ needs.build.outputs.image_tag }}
-          # This argument tells Snyk to fail the job if any high-severity vulnerabilities are found
-          args: --fail-on=high --severity-threshold=high
+          # CORRECTED ARGUMENT: Use --severity-threshold instead of --fail-on
+          args: --severity-threshold=high
 
   # Job 4: Update the deployment configuration
   update_deployment:
-    # CRITICAL CHANGE: This job will ONLY run if BOTH 'test' and 'scan' succeed
     needs: [test, scan]
     runs-on: ubuntu-latest
     steps:
@@ -79,11 +74,9 @@ jobs:
         with:
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
           repository: HariomKhaladkar/edtech-infra-config
-
       - name: Update image tag in user-service manifest
         run: |
           sed -i 's|tag: ".*"|tag: "${{ github.sha }}"|' argocd-apps/user-service-app.yaml
-
       - name: Commit and push the updated tag
         run: |
           git config --global user.name "GitHub Actions Bot"
