@@ -3,9 +3,7 @@ name: Build, Test, Scan, Push, and Deploy User Service
 on:
   push:
     branches: [ "main" ]
-    paths:
-      - 'user-service/**'
-      - '.github/workflows/ci-pipeline.yml'
+    # The 'paths' filter has been removed to guarantee this workflow runs.
 
 jobs:
   # Job 1: Build the Docker Image
@@ -28,6 +26,8 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
           no-cache: true
+
+
 
   # Job 2: Run API tests
   test:
