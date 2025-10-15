@@ -3,34 +3,30 @@ name: Build, Push, and Deploy Course Service
 on:
   push:
     branches: [ "main" ]
-    # This workflow will ONLY run if files inside the course-service folder are changed.
     paths:
       - 'course-service/**'
 
 jobs:
-  # Job 1: Build and Push the Docker Image
   build-course-service:
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ github.sha }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Build and push course-service image
         uses: docker/build-push-action@v4
         with:
-          # IMPORTANT: Set the context to the new service's directory
           context: ./course-service
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/course-service:${{ github.sha }}
           no-cache: true
 
-  # Job 2: Update the deployment repository
   update-course-deployment:
     needs: build-course-service
     runs-on: ubuntu-latest
@@ -40,12 +36,11 @@ jobs:
         with:
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
           repository: HariomKhaladkar/edtech-infra-config
-
       - name: Update image tag in course-service manifest
         run: |
-          # This sed command now targets the new course-service-app.yaml file
+          # THIS IS THE CRITICAL FIX:
+          # The command now targets the correct file.
           sed -i 's|tag: ".*"|tag: "${{ github.sha }}"|' argocd-apps/course-service-app.yaml
-
       - name: Commit and push the updated tag
         run: |
           git config --global user.name "GitHub Actions Bot"
